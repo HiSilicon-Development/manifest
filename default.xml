@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+  <remote name="github" fetch="https://github.com/HiSilicon-Development" />
+  <default remote="github" revision="refs/heads/main" sync-j="4" />
+  <project name="linux-6.12.y" path="kernel" groups="kernel" />
+  <project name="FFmpeg" path="ffmpeg" revision="refs/heads/9.0.1" groups="ffmpeg" />
+  <project name="build" path="scripts" groups="tools">
+    <copyfile src="build.sh" dest="build.sh" />
+    <copyfile src="workspace.gitignore" dest=".gitignore" />
+  </project>
+</manifest>
