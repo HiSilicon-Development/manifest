@@ -77,11 +77,34 @@ C51 是独立 MCU 的固件，不是 `scripts/boot/*.S` 中的 ARM 启动/交接
 
 容器、DTB、启动/PM 固件与模块必须来自同次构建。构建成功不代表实机启动、RF、待机或唤醒功能已验收。
 
+每个板型内核编译、容器校验和模块安装完成后，会自动在 `out/updates/` 生成可安装的更新归档及 `.sha256`：
+
+- `update-1001-<version>-<YYYYMMDD>.tar.gz`、`update-1002-<version>-<YYYYMMDD>.tar.gz`、`update-1006-<version>-<YYYYMMDD>.tar.gz`。
+- 1004 按所选 RF 分别生成 `update-1004-mxl214-<version>-<YYYYMMDD>.tar.gz`、`update-1004-r858-<version>-<YYYYMMDD>.tar.gz`，不能交叉使用。
+- EC6110T 生成 `update-ec6110t-<version>-<YYYYMMDD>.tar.gz`。
+
+版本取自实际构建元数据，日期使用制包主机的本地日期，不使用可复现编译的 `SOURCE_DATE_EPOCH=0`。同名的已生成归档会在新归档验证成功后替换；其它板型、RF 或日期的包保留。单独编译 FFmpeg 不生成内核 update。
+
+更新包包含同次构建的完整内核容器、模块、配置/符号版本/构建元数据、许可证和 `update.sh`，不包含 rootfs、Fastboot、bootargs 或运行时 firmware，不修改账户和网络。设备上已有的 firmware 保留；需要新增 firmware 时另行安装有授权的匹配文件，不能把“模块已打包”视为对应 firmware 已提供。内嵌 C51 的许可边界不变。
+
+也可仅对已有编译产物制包，不重新编译：
+
+```sh
+python3 scripts/updates.py --kernel-output out/kernel --kernel-source kernel --output out/updates --boards 1002
+python3 scripts/updates.py --kernel-output out/kernel --kernel-source kernel --output out/updates --boards 1004 --1004-variant r858
+```
+
+在匹配板型的现有 ARM64 Linux 紧凑分区系统中，先验证归档旁的 `.sha256`，解压到全新目录，进入 `update-<board>`（1004 为 `update-1004-<RF>`），先执行 `sudo sh update.sh --check`，再执行 `sudo sh update.sh`。安装器检查板型、RF、完整 eMMC 布局/rootfs 边界、载荷摘要和模块 ABI，写入后完整读回验证 SHA-256；不支持按容量猜分区，也不用于直接迁移原厂布局。
+
+默认不重启，不删除旧版本模块或包外文件；成功后手动重启。同版本覆盖也须重启，不能现场重载模块。`--force` 只跳过板型标签，不能跳过 RF、布局、ABI 或摘要检查；`--kernel-partition` 只接受目标分区的同一块设备别名。编译或制包过程不会自动接触任何目标设备。
+
+制包归档的安全边界测试可在工作区根目录运行 `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts -p test_updates.py`；该测试不编译内核，也不访问目标设备。
+
 FFmpeg 每次先从同一工作区的 `kernel/` 执行 `headers_install`，再使用新导出的 V4L2、VPSS 和 DRM UAPI 编译。导出的 `out/uapi/include/` 与 `out/uapi/include/drm/` 优先于系统头文件；libdrm 的用户态 API 和链接库仍由 ARM64 开发包提供。单独构建 FFmpeg 不要求先编译 Image，但必须有配套内核源码。
 
 FFmpeg 产物位于 `out/ffmpeg/`：`payload/bin/hivxe-ffmpeg`、`hivxe-ffprobe`，以及 `payload/lib/hivxe-ffmpeg/` 下的配套共享库；`metadata/` 记录实际源码、内核版本、UAPI 摘要与 ABI 信息。许可证和版权材料位于 `licenses/`。为兼容 Debian 12/13，使用 Debian 12 编译主机；ABI 检查拒绝要求高于 GLIBC 2.36 的产物。
 
-本仓库仅负责内核及配套 FFmpeg 编译，不提供 rootfs 制作、HiTool 操作、刷写/更新包或设备安装脚本，不自动写入设备。发布源码时不上传 `out/`、`.repo/` 或 Python 缓存；C51 二进制保留原厂来源与许可边界。发布 FFmpeg 二进制还须保留许可证、第三方版权声明，并提供匹配的完整对应源码、接口定义及构建脚本；摘要清单不能替代源码交付。
+本仓库负责内核、配套 FFmpeg 编译及内核/模块 update 归档，不提供 rootfs 制作或 HiTool 操作。随包安装器仅在用户显式执行后才写设备；编译和制包不自动写入设备。发布源码时不上传 `out/`、`.repo/` 或 Python 缓存；C51 二进制保留原厂来源与许可边界。发布 FFmpeg 二进制还须保留许可证、第三方版权声明，并提供匹配的完整对应源码、接口定义及构建脚本；摘要清单不能替代源码交付。
 
 相关资源
 ---------------
