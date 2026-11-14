@@ -79,7 +79,9 @@ C51 是独立 MCU 的固件，不是 `scripts/boot/*.S` 中的 ARM 启动/交接
 
 容器、DTB、启动/PM 固件与模块必须来自同次构建。构建成功不代表实机启动、RF、待机或唤醒功能已验收。
 
-每份 DTB 的 `system_suspend_enabled` 元数据记录其实际休眠策略；1004 分别位于 `variants.mxl214` 与 `variants.r858`，不能用板型共用的监控器能力替代变体策略。当前 R858 为 `false`，MxL214 与 1001/1002/1006 保留入口；这不是硬件验收结论，构建产物的 `deep_standby_hardware_verified` 仍为 `false`。已有实机记录只确认 1006，1001/1002/1004 MxL214 尚待逐板测试。
+每份 DTB 的 `system_suspend_enabled` 元数据记录其实际休眠策略；1004 分别位于 `variants.mxl214` 与 `variants.r858`，不能用板型共用的监控器能力替代变体策略。当前 R858 为 `false`，MxL214 与 1001/1002/1006 保留入口；这不是硬件验收结论，构建产物的 `deep_standby_hardware_verified` 仍为 `false`。已有实机记录包括 1006 和 1004 MxL214 的同次启动 IR 恢复，1001/1002 尚待测试；新增按键策略的验证范围与低层 STR 记录分开。
+
+公共内核配置启用 `CONFIG_HI3798CV200_POWERKEY`：正常 CV200 DVB-IP 板型默认内核处理短按 deep/五秒长按有序关机，R858 默认短按 ignore。更新包不再需要额外安装 logind 文件来取得默认行为，也不覆盖管理员配置。root 可使用 `standby-controller/power_key_policy` 改动作或显式切换 `userspace` 交还标准 `KEY_POWER` 事件；需要 systemd sleep hooks/inhibitors 的系统应选择后者。该配置不改变 CVPM/C51 的睡眠中红外唤醒机制，接口与状态含义见内核 `sysfs-driver-hi3798cv200-pm` ABI 文档。
 
 每个板型内核编译、容器校验和模块安装完成后，会自动在 `out/updates/` 生成可安装的更新归档及 `.sha256`：
 
